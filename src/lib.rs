@@ -15,7 +15,7 @@ use rand::Rng;
 use rand::distributions::{Normal, Distribution};
 
 //TODO:
-//error functions (MAE, MSE, cross-entropy, logcosh, ..)
+//add error functions (cross-entropy, logcosh, mape)
 //add PELU
 //add batch norm? (using running average)
 
@@ -312,6 +312,48 @@ impl Sequential
         let mut json = String::new();
         file.read_to_string(&mut json)?;
         Ok(Sequential::from_json(&json))
+    }
+    
+    /// Calculate the error to a target set:
+    /// Mean squared error
+    pub fn calc_mse(&self, target:&Vec<(Vec<f64>, Vec<f64>)>) -> f64
+    {
+        let mut avg_error = 0.0;
+        for (x, y) in target.iter()
+        {
+            let pred = self.run(x);
+            let mut mse = 0.0;
+            for (yt, yp) in pred.iter().zip(y.iter())
+            {
+                let error = *yt - *yp;
+                mse += error * error;
+            }
+            mse /= y.len() as f64;
+            avg_error += mse;
+        }
+        avg_error /= target.len() as f64;
+        avg_error
+    }
+    
+    /// Calculate the error to a target set:
+    /// Mean absolute error
+    pub fn calc_mae(&self, target:&Vec<(Vec<f64>, Vec<f64>)>) -> f64
+    {
+        let mut avg_error = 0.0;
+        for (x, y) in target.iter()
+        {
+            let pred = self.run(x);
+            let mut mae = 0.0;
+            for (yt, yp) in pred.iter().zip(y.iter())
+            {
+                let error = *yt - *yp;
+                mae += error.abs();
+            }
+            mae /= y.len() as f64;
+            avg_error += mae;
+        }
+        avg_error /= target.len() as f64;
+        avg_error
     }
 }
 
