@@ -1,0 +1,4 @@
+/target
+Cargo.lock
+/cifar-10-binary
+/model
