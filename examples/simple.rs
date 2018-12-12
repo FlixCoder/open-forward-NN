@@ -4,10 +4,6 @@ extern crate esopt;
 use ofnn::*;
 use esopt::*;
 
-const LR:f64 = 0.5;
-const LAMBDA:f64 = 0.0;
-const MOMENTUM:f64 = 0.0;
-
 
 fn main()
 {
@@ -37,7 +33,7 @@ fn main()
     let eval = NNEvaluator::new(model.clone(), target.clone());
     
     //evolutionary optimizer (for more details about it, see the git repository of it)
-    let mut opt = ES::new_with_sgd(eval, LR, LAMBDA, MOMENTUM);
+    let mut opt = ES::new_with_adam(eval, 0.5); //learning rate
     opt.set_params(model.get_params())
         .set_std(0.2)
         .set_samples(50);
@@ -45,7 +41,7 @@ fn main()
     //training: track the optimizer's results
     for i in 0..5
     {
-        let n = 200;
+        let n = 5;
         let res = opt.optimize(n); //optimize for n steps
         println!("After {} iteratios:", (i+1) * n);
         println!("Loss: {}", -res.0); //negative score
@@ -88,6 +84,11 @@ impl Evaluator for NNEvaluator
     {
         let mut local = self.model.clone();
         local.set_params(params);
-        - local.calc_binary_crossentropy(&self.target)
+        let mut score = -local.calc_binary_crossentropy(&self.target);
+        if score.is_nan()
+        { // set error to 0 when error is nan (happens, when model is already perfect)
+            score = 0.0;
+        } //returning NaN destroys all parameters!
+        score
     }
 }

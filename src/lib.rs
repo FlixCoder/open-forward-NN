@@ -16,6 +16,7 @@ use rand::distributions::{Normal, Distribution};
 
 //TODO:
 //add batch norm? (using running average)
+//add categorical crossentropy
 
 
 //SELU factors for a Normal(0, 1) data distribution from https://arxiv.org/pdf/1706.02515.pdf
