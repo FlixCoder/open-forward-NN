@@ -34,7 +34,7 @@ fn main()
     
     //evolutionary optimizer (for more details about it, see the git repository of it)
     let mut opt = ES::new_with_adam(eval, 0.5); //learning rate
-    opt.get_opt_mut().set_amsgrad(false); //disable AMSGrad
+    //opt.get_opt_mut().set_amsgrad(true); //enable AMSGrad
     opt.set_params(model.get_params())
         .set_std(0.2)
         .set_samples(50);
