@@ -15,15 +15,13 @@ use rand::Rng;
 use rand::distributions::{Normal, Distribution};
 
 //TODO:
-//add error functions (cross-entropy, logcosh, mape)
-//add PELU
 //add batch norm? (using running average)
 
 
-//values for a Normal(0, 1) distribution from https://arxiv.org/pdf/1706.02515.pdf
+//SELU factors for a Normal(0, 1) data distribution from https://arxiv.org/pdf/1706.02515.pdf
 const SELU_LAMBDA:f64 = 1.0507;
 const SELU_ALPHA:f64 = 1.6733;
-//values for a Normal(0, 2) distribution from https://arxiv.org/pdf/1706.02515.pdf
+//SELU factors for a Normal(0, 2) data distribution from https://arxiv.org/pdf/1706.02515.pdf
 //const SELU_LAMBDA:f64 = 1.06071;
 //const SELU_ALPHA:f64 = 1.97126;
 
@@ -39,8 +37,12 @@ pub enum Layer
     ReLU,
     /// leaky rectified linear unit (factor = factor to apply for x < 0)
     LReLU(f64),
+    /// parametric (leaky) rectified linear unit (factor = factor to apply for x < 0)
+    PReLU(f64),
     /// exponential linear unit (alpha = 1)
     ELU,
+    /// parametric exponential linear unit (factors a and b)
+    PELU(f64, f64),
     /// scaled exponential linear unit (self-normalizing). parameters are adapted to var=1 data
     SELU,
     /// sigmoid
@@ -128,7 +130,9 @@ impl Sequential
             match layer
             {
                 //Activation functions
-                Layer::LReLU(factor) => params.push(*factor),
+                //Layer::LReLU(factor) => params.push(*factor),
+                Layer::PReLU(factor) => params.push(*factor),
+                Layer::PELU(a, b) => { params.push(*a); params.push(*b);  },
                 //Regularization / Normalization
                 //Layer::Dropout(d) => params.push(*d),
                 //Neuron-layers
@@ -142,7 +146,7 @@ impl Sequential
                         }
                     }
                 },
-                //rest does not have params
+                //rest does not have params (that have to/may be changed)
                 _ => (),
             }
         }
@@ -160,7 +164,10 @@ impl Sequential
             match layer
             {
                 //Activation functions
-                Layer::LReLU(factor) => *factor = *iter.next().expect("Vector params is not big enough!"),
+                //Layer::LReLU(factor) => *factor = *iter.next().expect("Vector params is not big enough!"),
+                Layer::PReLU(factor) => *factor = *iter.next().expect("Vector params is not big enough!"),
+                Layer::PELU(a, b) => { *a = *iter.next().expect("Vector params is not big enough!");
+                                        *b = *iter.next().expect("Vector params is not big enough!"); },
                 //Regularization / Normalization
                 //Layer::Dropout(d) => *d = *iter.next().expect("Vector params is not big enough!"),
                 //Neuron-layers
@@ -174,7 +181,7 @@ impl Sequential
                         }
                     }
                 },
-                //rest does not have params
+                //rest does not have params (that have to/may be changed)
                 _ => (),
             }
         }
@@ -199,6 +206,24 @@ impl Sequential
     pub fn add_layer_lrelu(&mut self, factor:f64) -> &mut Self
     {
         let layer = Layer::LReLU(factor);
+        self.layers.push(layer);
+        self
+    }
+    
+    /// Add a PReLU layer:
+    /// factor = factor to apply to x < 0
+    pub fn add_layer_prelu(&mut self, factor:f64) -> &mut Self
+    {
+        let layer = Layer::PReLU(factor);
+        self.layers.push(layer);
+        self
+    }
+    
+    /// Add a PELU layer:
+    /// a and b are the specific factors
+    pub fn add_layer_pelu(&mut self, a:f64, b:f64) -> &mut Self
+    {
+        let layer = Layer::PELU(a, b);
         self.layers.push(layer);
         self
     }
@@ -251,7 +276,9 @@ impl Sequential
                 Layer::Linear => result.iter_mut().for_each(|x| { *x = linear(*x); }),
                 Layer::ReLU => result.iter_mut().for_each(|x| { *x = relu(*x); }),
                 Layer::LReLU(factor) => result.iter_mut().for_each(|x| { *x = lrelu(*x, *factor); }),
+                Layer::PReLU(factor) => result.iter_mut().for_each(|x| { *x = lrelu(*x, *factor); }),
                 Layer::ELU => result.iter_mut().for_each(|x| { *x = elu(*x); }),
+                Layer::PELU(a, b) => result.iter_mut().for_each(|x| { *x = pelu(*x, *a, *b); }),
                 Layer::SELU => result.iter_mut().for_each(|x| { *x =selu(*x); }),
                 Layer::Sigmoid => result.iter_mut().for_each(|x| { *x = sigmoid(*x); }),
                 Layer::Tanh => result.iter_mut().for_each(|x| { *x = tanh(*x); }),
@@ -315,42 +342,147 @@ impl Sequential
     }
     
     /// Calculate the error to a target set:
-    /// Mean squared error
+    /// Mean squared error (for regression)
     pub fn calc_mse(&self, target:&Vec<(Vec<f64>, Vec<f64>)>) -> f64
     {
         let mut avg_error = 0.0;
         for (x, y) in target.iter()
         {
             let pred = self.run(x);
-            let mut mse = 0.0;
-            for (yt, yp) in pred.iter().zip(y.iter())
+            let mut metric = 0.0;
+            for (yp, yt) in pred.iter().zip(y.iter())
             {
                 let error = *yt - *yp;
-                mse += error * error;
+                metric += error * error;
             }
-            mse /= y.len() as f64;
-            avg_error += mse;
+            metric /= y.len() as f64;
+            avg_error += metric;
         }
         avg_error /= target.len() as f64;
         avg_error
     }
     
     /// Calculate the error to a target set:
-    /// Mean absolute error
+    /// Root mean squared error (for regression)
+    pub fn calc_rmse(&self, target:&Vec<(Vec<f64>, Vec<f64>)>) -> f64
+    {
+        let mut avg_error = 0.0;
+        for (x, y) in target.iter()
+        {
+            let pred = self.run(x);
+            let mut metric = 0.0;
+            for (yp, yt) in pred.iter().zip(y.iter())
+            {
+                let error = *yt - *yp;
+                metric += error * error;
+            }
+            metric /= y.len() as f64;
+            avg_error += metric.sqrt();
+        }
+        avg_error /= target.len() as f64;
+        avg_error
+    }
+    
+    /// Calculate the error to a target set:
+    /// Mean absolute error (for regression)
     pub fn calc_mae(&self, target:&Vec<(Vec<f64>, Vec<f64>)>) -> f64
     {
         let mut avg_error = 0.0;
         for (x, y) in target.iter()
         {
             let pred = self.run(x);
-            let mut mae = 0.0;
-            for (yt, yp) in pred.iter().zip(y.iter())
+            let mut metric = 0.0;
+            for (yp, yt) in pred.iter().zip(y.iter())
             {
                 let error = *yt - *yp;
-                mae += error.abs();
+                metric += error.abs();
             }
-            mae /= y.len() as f64;
-            avg_error += mae;
+            metric /= y.len() as f64;
+            avg_error += metric;
+        }
+        avg_error /= target.len() as f64;
+        avg_error
+    }
+    
+    /// Calculate the error to a target set:
+    /// Mean absolute percentage error (better don't use if target has 0 values) (for regression)
+    pub fn calc_mape(&self, target:&Vec<(Vec<f64>, Vec<f64>)>) -> f64
+    {
+        let mut avg_error = 0.0;
+        for (x, y) in target.iter()
+        {
+            let pred = self.run(x);
+            let mut metric = 0.0;
+            for (yp, yt) in pred.iter().zip(y.iter())
+            {
+                let error = (*yt - *yp) / *yt;
+                metric += error.abs();
+            }
+            metric *= 100.0 / y.len() as f64;
+            avg_error += metric;
+        }
+        avg_error /= target.len() as f64;
+        avg_error
+    }
+    
+    /// Calculate the error to a target set:
+    /// logcosh (for regression)
+    pub fn calc_logcosh(&self, target:&Vec<(Vec<f64>, Vec<f64>)>) -> f64
+    {
+        let mut avg_error = 0.0;
+        for (x, y) in target.iter()
+        {
+            let pred = self.run(x);
+            let mut metric = 0.0;
+            for (yp, yt) in pred.iter().zip(y.iter())
+            {
+                let error = *yt - *yp;
+                metric += error.cosh().ln();
+            }
+            metric /= y.len() as f64;
+            avg_error += metric;
+        }
+        avg_error /= target.len() as f64;
+        avg_error
+    }
+    
+    /// Calculate the error to a target set:
+    /// binary cross-entropy (be sure to use 0, 1 classifiers+labels) (for classification)
+    pub fn calc_binary_crossentropy(&self, target:&Vec<(Vec<f64>, Vec<f64>)>) -> f64
+    {
+        let mut avg_error = 0.0;
+        for (x, y) in target.iter()
+        {
+            let pred = self.run(x);
+            let mut metric = 0.0;
+            for (yp, yt) in pred.iter().zip(y.iter())
+            {
+                let error = *yt * yp.ln() + (1.0 - *yt) * (1.0 - *yp).ln();
+                metric += -error;
+            }
+            metric /= y.len() as f64;
+            avg_error += metric;
+        }
+        avg_error /= target.len() as f64;
+        avg_error
+    }
+    
+    /// Calculate the error to a target set:
+    /// hinge loss (be sure to use 1, -1 classifiers+labels) (for classification)
+    pub fn calc_hingeloss(&self, target:&Vec<(Vec<f64>, Vec<f64>)>) -> f64
+    {
+        let mut avg_error = 0.0;
+        for (x, y) in target.iter()
+        {
+            let pred = self.run(x);
+            let mut metric = 0.0;
+            for (yp, yt) in pred.iter().zip(y.iter())
+            {
+                let error = 1.0 - *yt * *yp;
+                metric += error.max(0.0);
+            }
+            metric /= y.len() as f64;
+            avg_error += metric;
         }
         avg_error /= target.len() as f64;
         avg_error
@@ -462,6 +594,18 @@ fn elu(x:f64) -> f64
     else
     {
         x
+    }
+}
+
+fn pelu(x:f64, a:f64, b:f64) -> f64
+{
+    if x < 0.0
+    {
+        a * (x / b).exp() - a
+    }
+    else
+    {
+        (a / b) * x
     }
 }
 

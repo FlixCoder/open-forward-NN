@@ -15,7 +15,7 @@ fn main()
     let target = vec![(vec![0.0, 0.0], vec![0.0]),
                         (vec![0.0, 1.0], vec![1.0]),
                         (vec![1.0, 0.0], vec![1.0]),
-                        (vec![1.0, 1.0], vec![1.0])];
+                        (vec![1.0, 1.0], vec![0.0])];
     
     //NN model
     let loaded = Sequential::load("test.nn");
@@ -27,7 +27,7 @@ fn main()
         { //else construct it
             let mut model = Sequential::new(2); //input size = 2
             model.add_layer_dense(3, Initializer::He) //add hidden dense layer with 3 neurons, init with He
-                .add_layer_lrelu(0.3) //add lrelu activation with initial factor 0.3
+                .add_layer_prelu(0.3) //add lrelu activation with initial factor 0.3
                 .add_layer_dense(1, Initializer::Glorot) //add output dense layer with only 1 output, init with Glorot
                 .add_layer(Layer::Sigmoid); //add sigmoid activation
             model
@@ -48,7 +48,7 @@ fn main()
         let n = 200;
         let res = opt.optimize(n); //optimize for n steps
         println!("After {} iteratios:", (i+1) * n);
-        println!("MSE: {}", -res.0);
+        println!("Loss: {}", -res.0); //negative score
         println!("Gradnorm: {}", res.1);
         println!("");
     }
@@ -56,8 +56,13 @@ fn main()
     //display and save results
     model.set_params(opt.get_params());
     model.save("test.nn").ok();
-    println!("LReLU factor: {:?}", model.get_layers()[1]);
+    println!("PReLU factor: {:?}", model.get_layers()[1]);
+    println!("Prediction on {:?}: {}", target[0].0, model.run(&target[0].0)[0]);
+    println!("Prediction on {:?}: {}", target[1].0, model.run(&target[1].0)[0]);
     println!("Prediction on {:?}: {}", target[2].0, model.run(&target[2].0)[0]);
+    println!("Prediction on {:?}: {}", target[3].0, model.run(&target[3].0)[0]);
+        
+    //clean up
     std::fs::remove_file("test.nn").ok();
 }
 
@@ -83,6 +88,6 @@ impl Evaluator for NNEvaluator
     {
         let mut local = self.model.clone();
         local.set_params(params);
-        - local.calc_mse(&self.target)
+        - local.calc_binary_crossentropy(&self.target)
     }
 }
