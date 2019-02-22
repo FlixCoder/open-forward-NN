@@ -161,7 +161,7 @@ impl Sequential
     /// Set the layers' parameters (including LReLU factors) by a flat input.
     /// Used for evolution-strategies.
     /// Panics if params' size does not fit the layers
-    pub fn set_params(&mut self, params:&Vec<f64>) -> &mut Self
+    pub fn set_params(&mut self, params:&[f64]) -> &mut Self
     {
         let mut iter = params.iter();
         for layer in self.layers.iter_mut()
