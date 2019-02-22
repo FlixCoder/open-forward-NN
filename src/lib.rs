@@ -15,9 +15,10 @@ use rand::Rng;
 use rand::distributions::{Normal, Distribution};
 
 //TODO:
-//add (batch) norm? (using running average)
+//add (batch) normalization? (using running average)
 //try softmax without exp?
 //multiplication node layer? (try some impossible stuff for backpropagation)
+//add convolutional and pooling layers?
 
 
 //SELU factors for a Normal(0, 1) data distribution from https://arxiv.org/pdf/1706.02515.pdf
@@ -64,7 +65,7 @@ pub enum Layer
     /// soft max
     SoftMax,
     
-    //Regularization / Normalization
+    //Regularization / Normalization / Utility
     /// Apply dropout to the previous layer (d = percent of neurons to drop)
     Dropout(f64),
     
@@ -135,7 +136,7 @@ impl Sequential
                 //Layer::LReLU(factor) => params.push(*factor),
                 Layer::PReLU(factor) => params.push(*factor),
                 Layer::PELU(a, b) => { params.push(*a); params.push(*b);  },
-                //Regularization / Normalization
+                //Regularization / Normalization / Utility
                 //Layer::Dropout(d) => params.push(*d),
                 //Neuron-layers
                 Layer::Dense(weights) =>
@@ -170,7 +171,7 @@ impl Sequential
                 Layer::PReLU(factor) => *factor = *iter.next().expect("Vector params is not big enough!"),
                 Layer::PELU(a, b) => { *a = *iter.next().expect("Vector params is not big enough!");
                                         *b = *iter.next().expect("Vector params is not big enough!"); },
-                //Regularization / Normalization
+                //Regularization / Normalization / Utility
                 //Layer::Dropout(d) => *d = *iter.next().expect("Vector params is not big enough!"),
                 //Neuron-layers
                 Layer::Dense(weights) =>
@@ -291,7 +292,7 @@ impl Sequential
                 Layer::SoftPlus => result.iter_mut().for_each(|x| { *x = softplus(*x); }),
                 Layer::SoftMax => softmax(&mut result),
                 
-                //Regularization / Normalization
+                //Regularization / Normalization / Utility
                 Layer::Dropout(d) => apply_dropout(&mut result, *d),
                 
                 //Neuron-layers
@@ -301,7 +302,7 @@ impl Sequential
         result
     }
     
-    /// Predict values (forward pass) for a vector of input data
+    /// Predict values (forward pass) for a vector of input data (Vec<input>):
     pub fn predict(&self, inputs:&Vec<Vec<f64>>) -> Vec<Vec<f64>>
     {
         let mut results = Vec::new();
@@ -334,7 +335,7 @@ impl Sequential
         Ok(())
     }
     
-    /// Creates a model from a file
+    /// Creates a model from a previously saved file
     pub fn load(file:&str) -> Result<Sequential, std::io::Error>
     {
         let mut file = File::open(file)?;
@@ -343,7 +344,7 @@ impl Sequential
         Ok(Sequential::from_json(&json))
     }
     
-    /// Calculate the error to a target set:
+    /// Calculate the error to a target set (Vec<(x, y)>):
     /// Mean squared error (for regression)
     pub fn calc_mse(&self, target:&Vec<(Vec<f64>, Vec<f64>)>) -> f64
     {
@@ -364,7 +365,7 @@ impl Sequential
         avg_error
     }
     
-    /// Calculate the error to a target set:
+    /// Calculate the error to a target set (Vec<(x, y)>):
     /// Root mean squared error (for regression)
     pub fn calc_rmse(&self, target:&Vec<(Vec<f64>, Vec<f64>)>) -> f64
     {
@@ -385,7 +386,7 @@ impl Sequential
         avg_error
     }
     
-    /// Calculate the error to a target set:
+    /// Calculate the error to a target set (Vec<(x, y)>):
     /// Mean absolute error (for regression)
     pub fn calc_mae(&self, target:&Vec<(Vec<f64>, Vec<f64>)>) -> f64
     {
@@ -406,7 +407,7 @@ impl Sequential
         avg_error
     }
     
-    /// Calculate the error to a target set:
+    /// Calculate the error to a target set (Vec<(x, y)>):
     /// Mean absolute percentage error (better don't use if target has 0 values) (for regression)
     pub fn calc_mape(&self, target:&Vec<(Vec<f64>, Vec<f64>)>) -> f64
     {
@@ -427,7 +428,7 @@ impl Sequential
         avg_error
     }
     
-    /// Calculate the error to a target set:
+    /// Calculate the error to a target set (Vec<(x, y)>):
     /// logcosh (for regression)
     pub fn calc_logcosh(&self, target:&Vec<(Vec<f64>, Vec<f64>)>) -> f64
     {
@@ -448,7 +449,7 @@ impl Sequential
         avg_error
     }
     
-    /// Calculate the error to a target set:
+    /// Calculate the error to a target set (Vec<(x, y)>):
     /// binary cross-entropy (be sure to use 0, 1 classifiers+labels) (for classification)
     pub fn calc_binary_crossentropy(&self, target:&Vec<(Vec<f64>, Vec<f64>)>) -> f64
     {
@@ -469,7 +470,7 @@ impl Sequential
         avg_error
     }
     
-    /// Calculate the error to a target set:
+    /// Calculate the error to a target set (Vec<(x, y)>):
     /// categorical cross-entropy (be sure to use 0, 1 classifiers+labels) (for classification)
     pub fn calc_categorical_crossentropy(&self, target:&Vec<(Vec<f64>, Vec<f64>)>) -> f64
     {
@@ -489,7 +490,7 @@ impl Sequential
         avg_error
     }
     
-    /// Calculate the error to a target set:
+    /// Calculate the error to a target set (Vec<(x, y)>):
     /// hinge loss (be sure to use 1, -1 classifiers+labels) (for classification)
     pub fn calc_hingeloss(&self, target:&Vec<(Vec<f64>, Vec<f64>)>) -> f64
     {
