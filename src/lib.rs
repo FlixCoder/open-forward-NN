@@ -265,14 +265,14 @@ impl Sequential
     }
     
     /// Do a forward pass through the model
-    pub fn run(&self, input:&Vec<f64>) -> Vec<f64>
+    pub fn run(&self, input:&[f64]) -> Vec<f64>
     {
         if input.len() != self.num_inputs
         {
             panic!("Incorrect input size!");
         }
         
-        let mut result = input.clone();
+        let mut result = input.to_vec();
         for layer in self.layers.iter()
         {
             match layer
@@ -305,7 +305,7 @@ impl Sequential
     }
     
     /// Predict values (forward pass) for a vector of input data (Vec<input>):
-    pub fn predict(&self, inputs:&Vec<Vec<f64>>) -> Vec<Vec<f64>>
+    pub fn predict(&self, inputs:&[Vec<f64>]) -> Vec<Vec<f64>>
     {
         let mut results = Vec::new();
         for input in inputs.iter()
@@ -349,7 +349,7 @@ impl Sequential
     /// Calculate the error to a target set (Vec<(x, y)>):
     /// Mean squared error (for regression)
     /// Potentially ignores different vector lenghts!
-    pub fn calc_mse(&self, target:&Vec<(Vec<f64>, Vec<f64>)>) -> f64
+    pub fn calc_mse(&self, target:&[(Vec<f64>, Vec<f64>)]) -> f64
     {
         let mut avg_error = 0.0;
         for (x, y) in target.iter()
@@ -371,7 +371,7 @@ impl Sequential
     /// Calculate the error to a target set (Vec<(x, y)>):
     /// Root mean squared error (for regression)
     /// Potentially ignores different vector lenghts!
-    pub fn calc_rmse(&self, target:&Vec<(Vec<f64>, Vec<f64>)>) -> f64
+    pub fn calc_rmse(&self, target:&[(Vec<f64>, Vec<f64>)]) -> f64
     {
         let mut avg_error = 0.0;
         for (x, y) in target.iter()
@@ -393,7 +393,7 @@ impl Sequential
     /// Calculate the error to a target set (Vec<(x, y)>):
     /// Mean absolute error (for regression)
     /// Potentially ignores different vector lenghts!
-    pub fn calc_mae(&self, target:&Vec<(Vec<f64>, Vec<f64>)>) -> f64
+    pub fn calc_mae(&self, target:&[(Vec<f64>, Vec<f64>)]) -> f64
     {
         let mut avg_error = 0.0;
         for (x, y) in target.iter()
@@ -415,7 +415,7 @@ impl Sequential
     /// Calculate the error to a target set (Vec<(x, y)>):
     /// Mean absolute percentage error (better don't use if target has 0 values) (for regression)
     /// Potentially ignores different vector lenghts!
-    pub fn calc_mape(&self, target:&Vec<(Vec<f64>, Vec<f64>)>) -> f64
+    pub fn calc_mape(&self, target:&[(Vec<f64>, Vec<f64>)]) -> f64
     {
         let mut avg_error = 0.0;
         for (x, y) in target.iter()
@@ -437,7 +437,7 @@ impl Sequential
     /// Calculate the error to a target set (Vec<(x, y)>):
     /// logcosh (for regression)
     /// Potentially ignores different vector lenghts!
-    pub fn calc_logcosh(&self, target:&Vec<(Vec<f64>, Vec<f64>)>) -> f64
+    pub fn calc_logcosh(&self, target:&[(Vec<f64>, Vec<f64>)]) -> f64
     {
         let mut avg_error = 0.0;
         for (x, y) in target.iter()
@@ -459,7 +459,7 @@ impl Sequential
     /// Calculate the error to a target set (Vec<(x, y)>):
     /// binary cross-entropy (be sure to use 0, 1 classifiers+labels) (for classification)
     /// Potentially ignores different vector lenghts!
-    pub fn calc_binary_crossentropy(&self, target:&Vec<(Vec<f64>, Vec<f64>)>) -> f64
+    pub fn calc_binary_crossentropy(&self, target:&[(Vec<f64>, Vec<f64>)]) -> f64
     {
         let mut avg_error = 0.0;
         for (x, y) in target.iter()
@@ -481,7 +481,7 @@ impl Sequential
     /// Calculate the error to a target set (Vec<(x, y)>):
     /// categorical cross-entropy (be sure to use 0, 1 classifiers+labels) (for classification)
     /// Potentially ignores different vector lenghts!
-    pub fn calc_categorical_crossentropy(&self, target:&Vec<(Vec<f64>, Vec<f64>)>) -> f64
+    pub fn calc_categorical_crossentropy(&self, target:&[(Vec<f64>, Vec<f64>)]) -> f64
     {
         let mut avg_error = 0.0;
         for (x, y) in target.iter()
@@ -502,7 +502,7 @@ impl Sequential
     /// Calculate the error to a target set (Vec<(x, y)>):
     /// hinge loss (be sure to use 1, -1 classifiers+labels) (for classification)
     /// Potentially ignores different vector lenghts!
-    pub fn calc_hingeloss(&self, target:&Vec<(Vec<f64>, Vec<f64>)>) -> f64
+    pub fn calc_hingeloss(&self, target:&[(Vec<f64>, Vec<f64>)]) -> f64
     {
         let mut avg_error = 0.0;
         for (x, y) in target.iter()
@@ -558,7 +558,7 @@ fn gen_he(n_in:usize, n_out:usize) -> Vec<Vec<f64>>
 }
 
 /// Apply dropout to a layer. d = fraction of nodes to be dropped
-fn apply_dropout(layer:&mut Vec<f64>, d:f64)
+fn apply_dropout(layer:&mut [f64], d:f64)
 {
     if d == 0.0
     { //allow zero dropout to allow later change, but do nothing here
@@ -578,7 +578,7 @@ fn apply_dropout(layer:&mut Vec<f64>, d:f64)
 
 /// Calculate layer results with bias from weight
 /// If weights matrix is empty, result will be empty (indicating zero nodes)
-fn modified_matrix_dotprod(weights:&Vec<Vec<f64>>, values:&Vec<f64>) -> Vec<f64>
+fn modified_matrix_dotprod(weights:&[Vec<f64>], values:&[f64]) -> Vec<f64>
 {
     let mut result = Vec::new();
     for node in weights.iter()
@@ -689,7 +689,7 @@ fn softplus(x:f64) -> f64
     (1.0 + x.exp()).ln()
 }
 
-fn softmax(arr:&mut Vec<f64>)
+fn softmax(arr:&mut [f64])
 {
     let norm:f64 = arr.iter().map(|x| x.exp()).sum();
     for val in arr.iter_mut()

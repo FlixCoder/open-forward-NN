@@ -1,7 +1,7 @@
 /// Calculate the error between predictions and targets:
 /// Mean squared error (for regression)
 /// Potentially ignores different vector lenghts!
-pub fn mse(preds:&Vec<Vec<f64>>, targets:&Vec<Vec<f64>>) -> f64
+pub fn mse(preds:&[Vec<f64>], targets:&[Vec<f64>]) -> f64
 {
     let mut avg_error = 0.0;
     for (pred, target) in preds.iter().zip(targets.iter())
@@ -22,7 +22,7 @@ pub fn mse(preds:&Vec<Vec<f64>>, targets:&Vec<Vec<f64>>) -> f64
 /// Calculate the error between predictions and targets:
 /// Root mean squared error (for regression)
 /// Potentially ignores different vector lenghts!
-pub fn rmse(preds:&Vec<Vec<f64>>, targets:&Vec<Vec<f64>>) -> f64
+pub fn rmse(preds:&[Vec<f64>], targets:&[Vec<f64>]) -> f64
 {
     let mut avg_error = 0.0;
     for (pred, target) in preds.iter().zip(targets.iter())
@@ -43,7 +43,7 @@ pub fn rmse(preds:&Vec<Vec<f64>>, targets:&Vec<Vec<f64>>) -> f64
 /// Calculate the error between predictions and targets:
 /// Mean absolute error (for regression)
 /// Potentially ignores different vector lenghts!
-pub fn mae(preds:&Vec<Vec<f64>>, targets:&Vec<Vec<f64>>) -> f64
+pub fn mae(preds:&[Vec<f64>], targets:&[Vec<f64>]) -> f64
 {
     let mut avg_error = 0.0;
     for (pred, target) in preds.iter().zip(targets.iter())
@@ -64,7 +64,7 @@ pub fn mae(preds:&Vec<Vec<f64>>, targets:&Vec<Vec<f64>>) -> f64
 /// Calculate the error between predictions and targets:
 /// Mean absolute percentage error (better don't use if target has 0 values) (for regression)
 /// Potentially ignores different vector lenghts!
-pub fn mape(preds:&Vec<Vec<f64>>, targets:&Vec<Vec<f64>>) -> f64
+pub fn mape(preds:&[Vec<f64>], targets:&[Vec<f64>]) -> f64
 {
     let mut avg_error = 0.0;
     for (pred, target) in preds.iter().zip(targets.iter())
@@ -85,7 +85,7 @@ pub fn mape(preds:&Vec<Vec<f64>>, targets:&Vec<Vec<f64>>) -> f64
 /// Calculate the error between predictions and targets:
 /// logcosh (for regression)
 /// Potentially ignores different vector lenghts!
-pub fn logcosh(preds:&Vec<Vec<f64>>, targets:&Vec<Vec<f64>>) -> f64
+pub fn logcosh(preds:&[Vec<f64>], targets:&[Vec<f64>]) -> f64
 {
     let mut avg_error = 0.0;
     for (pred, target) in preds.iter().zip(targets.iter())
@@ -106,7 +106,7 @@ pub fn logcosh(preds:&Vec<Vec<f64>>, targets:&Vec<Vec<f64>>) -> f64
 /// Calculate the error between predictions and targets:
 /// binary cross-entropy (be sure to use 0, 1 classifiers+labels) (for classification)
 /// Potentially ignores different vector lenghts!
-pub fn binary_crossentropy(preds:&Vec<Vec<f64>>, targets:&Vec<Vec<f64>>) -> f64
+pub fn binary_crossentropy(preds:&[Vec<f64>], targets:&[Vec<f64>]) -> f64
 {
     let mut avg_error = 0.0;
     for (pred, target) in preds.iter().zip(targets.iter())
@@ -127,7 +127,7 @@ pub fn binary_crossentropy(preds:&Vec<Vec<f64>>, targets:&Vec<Vec<f64>>) -> f64
 /// Calculate the error between predictions and targets:
 /// categorical cross-entropy (be sure to use 0, 1 classifiers+labels) (for classification)
 /// Potentially ignores different vector lenghts!
-pub fn categorical_crossentropy(preds:&Vec<Vec<f64>>, targets:&Vec<Vec<f64>>) -> f64
+pub fn categorical_crossentropy(preds:&[Vec<f64>], targets:&[Vec<f64>]) -> f64
 {
     let mut avg_error = 0.0;
     for (pred, target) in preds.iter().zip(targets.iter())
@@ -147,7 +147,7 @@ pub fn categorical_crossentropy(preds:&Vec<Vec<f64>>, targets:&Vec<Vec<f64>>) ->
 /// Calculate the error between predictions and targets:
 /// hinge loss (be sure to use 1, -1 classifiers+labels) (for classification)
 /// Potentially ignores different vector lenghts!
-pub fn hingeloss(preds:&Vec<Vec<f64>>, targets:&Vec<Vec<f64>>) -> f64
+pub fn hingeloss(preds:&[Vec<f64>], targets:&[Vec<f64>]) -> f64
 {
     let mut avg_error = 0.0;
     for (pred, target) in preds.iter().zip(targets.iter())

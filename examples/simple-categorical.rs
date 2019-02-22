@@ -74,7 +74,7 @@ impl NNEvaluator
 
 impl Evaluator for NNEvaluator
 {
-    fn eval(&self, params:&Vec<f64>) -> f64
+    fn eval(&self, params:&[f64]) -> f64
     {
         let mut local = self.model.clone();
         local.set_params(params);
