@@ -16,9 +16,11 @@ use rand::distributions::{Normal, Distribution};
 
 //TODO:
 //add (batch) normalization? (using running average)
-//try softmax without exp?
+//try new softmax without exp?
 //multiplication node layer? (try some impossible stuff for backpropagation)
 //add convolutional and pooling layers?
+
+pub mod losses;
 
 
 //SELU factors for a Normal(0, 1) data distribution from https://arxiv.org/pdf/1706.02515.pdf
@@ -346,6 +348,7 @@ impl Sequential
     
     /// Calculate the error to a target set (Vec<(x, y)>):
     /// Mean squared error (for regression)
+    /// Potentially ignores different vector lenghts!
     pub fn calc_mse(&self, target:&Vec<(Vec<f64>, Vec<f64>)>) -> f64
     {
         let mut avg_error = 0.0;
@@ -367,6 +370,7 @@ impl Sequential
     
     /// Calculate the error to a target set (Vec<(x, y)>):
     /// Root mean squared error (for regression)
+    /// Potentially ignores different vector lenghts!
     pub fn calc_rmse(&self, target:&Vec<(Vec<f64>, Vec<f64>)>) -> f64
     {
         let mut avg_error = 0.0;
@@ -388,6 +392,7 @@ impl Sequential
     
     /// Calculate the error to a target set (Vec<(x, y)>):
     /// Mean absolute error (for regression)
+    /// Potentially ignores different vector lenghts!
     pub fn calc_mae(&self, target:&Vec<(Vec<f64>, Vec<f64>)>) -> f64
     {
         let mut avg_error = 0.0;
@@ -409,6 +414,7 @@ impl Sequential
     
     /// Calculate the error to a target set (Vec<(x, y)>):
     /// Mean absolute percentage error (better don't use if target has 0 values) (for regression)
+    /// Potentially ignores different vector lenghts!
     pub fn calc_mape(&self, target:&Vec<(Vec<f64>, Vec<f64>)>) -> f64
     {
         let mut avg_error = 0.0;
@@ -430,6 +436,7 @@ impl Sequential
     
     /// Calculate the error to a target set (Vec<(x, y)>):
     /// logcosh (for regression)
+    /// Potentially ignores different vector lenghts!
     pub fn calc_logcosh(&self, target:&Vec<(Vec<f64>, Vec<f64>)>) -> f64
     {
         let mut avg_error = 0.0;
@@ -451,6 +458,7 @@ impl Sequential
     
     /// Calculate the error to a target set (Vec<(x, y)>):
     /// binary cross-entropy (be sure to use 0, 1 classifiers+labels) (for classification)
+    /// Potentially ignores different vector lenghts!
     pub fn calc_binary_crossentropy(&self, target:&Vec<(Vec<f64>, Vec<f64>)>) -> f64
     {
         let mut avg_error = 0.0;
@@ -472,6 +480,7 @@ impl Sequential
     
     /// Calculate the error to a target set (Vec<(x, y)>):
     /// categorical cross-entropy (be sure to use 0, 1 classifiers+labels) (for classification)
+    /// Potentially ignores different vector lenghts!
     pub fn calc_categorical_crossentropy(&self, target:&Vec<(Vec<f64>, Vec<f64>)>) -> f64
     {
         let mut avg_error = 0.0;
@@ -492,6 +501,7 @@ impl Sequential
     
     /// Calculate the error to a target set (Vec<(x, y)>):
     /// hinge loss (be sure to use 1, -1 classifiers+labels) (for classification)
+    /// Potentially ignores different vector lenghts!
     pub fn calc_hingeloss(&self, target:&Vec<(Vec<f64>, Vec<f64>)>) -> f64
     {
         let mut avg_error = 0.0;
