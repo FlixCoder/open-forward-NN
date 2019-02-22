@@ -15,9 +15,9 @@ use rand::Rng;
 use rand::distributions::{Normal, Distribution};
 
 //TODO:
-//add categorical crossentropy
-//add batch norm? (using running average)
-//implement and add LSTM?
+//add (batch) norm? (using running average)
+//try softmax without exp?
+//multiplication node layer? (try some impossible stuff for backpropagation)
 
 
 //SELU factors for a Normal(0, 1) data distribution from https://arxiv.org/pdf/1706.02515.pdf
@@ -463,6 +463,26 @@ impl Sequential
                 metric += -error;
             }
             metric /= y.len() as f64;
+            avg_error += metric;
+        }
+        avg_error /= target.len() as f64;
+        avg_error
+    }
+    
+    /// Calculate the error to a target set:
+    /// categorical cross-entropy (be sure to use 0, 1 classifiers+labels) (for classification)
+    pub fn calc_categorical_crossentropy(&self, target:&Vec<(Vec<f64>, Vec<f64>)>) -> f64
+    {
+        let mut avg_error = 0.0;
+        for (x, y) in target.iter()
+        {
+            let pred = self.run(x);
+            let mut metric = 0.0;
+            for (yp, yt) in pred.iter().zip(y.iter())
+            {
+                let error = *yt * (*yp).ln();
+                metric += -error;
+            }
             avg_error += metric;
         }
         avg_error /= target.len() as f64;
