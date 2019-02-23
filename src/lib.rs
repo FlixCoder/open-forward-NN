@@ -11,12 +11,12 @@ extern crate rand;
 
 use std::io::prelude::*;
 use std::fs::File;
-use rand::Rng;
+use rand::prelude::*;
 use rand::distributions::{Normal, Distribution};
 
 //TODO:
 //add (batch) normalization? (using running average)
-//try new softmax without exp?
+//try new softmax without exp? (possibly bad for losses)
 //multiplication node layer? (try some impossible stuff for backpropagation)
 //add convolutional and pooling layers?
 
@@ -528,7 +528,7 @@ impl Sequential
 /// Generate a vector of random numbers with 0 mean and std std, normally distributed.
 fn gen_rnd_vec(n:usize, std:f64) -> Vec<f64>
 {
-    let mut rng = rand::thread_rng();
+    let mut rng = thread_rng();
     let normal = Normal::new(0.0, std);
     normal.sample_iter(&mut rng).take(n).collect()
 }
@@ -566,7 +566,7 @@ fn apply_dropout(layer:&mut [f64], d:f64)
     }
     // set nodes to zero
     let num = (d * layer.len() as f64) as usize;
-    let mut rng = rand::thread_rng();
+    let mut rng = thread_rng();
     for _ in 0..num
     {
         let i = rng.gen::<usize>() % layer.len();
