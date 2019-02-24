@@ -81,7 +81,7 @@ impl NNEvaluator
 
 impl Evaluator for NNEvaluator
 {
-    fn eval(&self, params:&[f64]) -> f64
+    fn eval_test(&self, params:&[f64]) -> f64
     {
         let mut local = self.model.clone();
         local.set_params(params);
@@ -91,5 +91,10 @@ impl Evaluator for NNEvaluator
             score = 0.0;
         } //returning NaN destroys all parameters!
         score
+    }
+    
+    fn eval_train(&self, params:&[f64], _:usize) -> f64
+    {
+        self.eval_test(params)
     }
 }
