@@ -3,6 +3,7 @@ extern crate esopt;
 
 use ofnn::*;
 use esopt::*;
+use ofnn::Float;
 
 
 fn main()
@@ -68,12 +69,12 @@ fn main()
 struct NNEvaluator
 {
     model:Sequential,
-    target:Vec<(Vec<f64>, Vec<f64>)>,
+    target:Vec<(Vec<Float>, Vec<Float>)>,
 }
 
 impl NNEvaluator
 {
-    pub fn new(model:Sequential, target:Vec<(Vec<f64>, Vec<f64>)>) -> NNEvaluator
+    pub fn new(model:Sequential, target:Vec<(Vec<Float>, Vec<Float>)>) -> NNEvaluator
     {
         NNEvaluator { model: model, target: target }
     }
@@ -81,7 +82,7 @@ impl NNEvaluator
 
 impl Evaluator for NNEvaluator
 {
-    fn eval_test(&self, params:&[f64]) -> f64
+    fn eval_test(&self, params:&[Float]) -> Float
     {
         let mut local = self.model.clone();
         local.set_params(params);
@@ -93,7 +94,7 @@ impl Evaluator for NNEvaluator
         score
     }
     
-    fn eval_train(&self, params:&[f64], _:usize) -> f64
+    fn eval_train(&self, params:&[Float], _:usize) -> Float
     {
         self.eval_test(params)
     }

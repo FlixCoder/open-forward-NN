@@ -14,21 +14,26 @@ use std::fs::File;
 use rand::prelude::*;
 use rand::distributions::{Normal, Distribution};
 
+pub type Float = f32;
+#[cfg(feature = "floats-f64")]
+pub type Float = f64;
+
 //TODO:
 //add (batch) normalization? (using running average)
 //try new softmax without exp? (possibly bad for losses)
 //multiplication node layer? (try some impossible stuff for backpropagation)
 //add convolutional and pooling layers?
+//add dropout layer with param getting optimized as well
 
 pub mod losses;
 
 
 //SELU factors for a Normal(0, 1) data distribution from https://arxiv.org/pdf/1706.02515.pdf
-const SELU_LAMBDA:f64 = 1.0507;
-const SELU_ALPHA:f64 = 1.6733;
+const SELU_LAMBDA:Float = 1.0507;
+const SELU_ALPHA:Float = 1.6733;
 //SELU factors for a Normal(0, 2) data distribution from https://arxiv.org/pdf/1706.02515.pdf
-//const SELU_LAMBDA:f64 = 1.06071;
-//const SELU_ALPHA:f64 = 1.97126;
+//const SELU_LAMBDA:Float = 1.06071;
+//const SELU_ALPHA:Float = 1.97126;
 
 
 /// Define the available types of layers
@@ -41,13 +46,13 @@ pub enum Layer
     /// rectified linear unit
     ReLU,
     /// leaky rectified linear unit (factor = factor to apply for x < 0)
-    LReLU(f64),
+    LReLU(Float),
     /// parametric (leaky) rectified linear unit (factor = factor to apply for x < 0)
-    PReLU(f64),
+    PReLU(Float),
     /// exponential linear unit (alpha = 1)
     ELU,
     /// parametric exponential linear unit (factors a and b)
-    PELU(f64, f64),
+    PELU(Float, Float),
     /// scaled exponential linear unit (self-normalizing). parameters are adapted to var=1 data
     SELU,
     /// sigmoid
@@ -69,11 +74,11 @@ pub enum Layer
     
     //Regularization / Normalization / Utility
     /// Apply dropout to the previous layer (d = percent of neurons to drop)
-    Dropout(f64),
+    Dropout(Float),
     
     //Neuron-layers
     /// Dense layer (params = weights of the layer, be sure to have the correct dimensions! include bias as first parameter)
-    Dense(Vec<Vec<f64>>),
+    Dense(Vec<Vec<Float>>),
 }
 
 /// Definition of usable initializers in Sequential.add_layer_dense
@@ -85,7 +90,7 @@ pub enum Initializer
     /// He initialization
     He,
     /// initialize with a constant value
-    Const(f64),
+    Const(Float),
 }
 
 
@@ -127,7 +132,7 @@ impl Sequential
     
     /// Return the flat parameters of the layers (including LReLU factors).
     /// Used for evolution-strategies
-    pub fn get_params(&self) -> Vec<f64>
+    pub fn get_params(&self) -> Vec<Float>
     {
         let mut params = Vec::new();
         for layer in self.layers.iter()
@@ -161,7 +166,7 @@ impl Sequential
     /// Set the layers' parameters (including LReLU factors) by a flat input.
     /// Used for evolution-strategies.
     /// Panics if params' size does not fit the layers
-    pub fn set_params(&mut self, params:&[f64]) -> &mut Self
+    pub fn set_params(&mut self, params:&[Float]) -> &mut Self
     {
         let mut iter = params.iter();
         for layer in self.layers.iter_mut()
@@ -208,7 +213,7 @@ impl Sequential
     
     /// Add a LReLU layer:
     /// factor = factor to apply to x < 0
-    pub fn add_layer_lrelu(&mut self, factor:f64) -> &mut Self
+    pub fn add_layer_lrelu(&mut self, factor:Float) -> &mut Self
     {
         let layer = Layer::LReLU(factor);
         self.layers.push(layer);
@@ -217,7 +222,7 @@ impl Sequential
     
     /// Add a PReLU layer:
     /// factor = factor to apply to x < 0
-    pub fn add_layer_prelu(&mut self, factor:f64) -> &mut Self
+    pub fn add_layer_prelu(&mut self, factor:Float) -> &mut Self
     {
         let layer = Layer::PReLU(factor);
         self.layers.push(layer);
@@ -226,7 +231,7 @@ impl Sequential
     
     /// Add a PELU layer:
     /// a and b are the specific factors
-    pub fn add_layer_pelu(&mut self, a:f64, b:f64) -> &mut Self
+    pub fn add_layer_pelu(&mut self, a:Float, b:Float) -> &mut Self
     {
         let layer = Layer::PELU(a, b);
         self.layers.push(layer);
@@ -235,7 +240,7 @@ impl Sequential
     
     /// Add a Dropout layer:
     /// d = fraction of nodes to drop
-    pub fn add_layer_dropout(&mut self, d:f64) -> &mut Self
+    pub fn add_layer_dropout(&mut self, d:Float) -> &mut Self
     {
         if d < 0.0 || d >= 1.0
         {
@@ -265,7 +270,7 @@ impl Sequential
     }
     
     /// Do a forward pass through the model
-    pub fn run(&self, input:&[f64]) -> Vec<f64>
+    pub fn run(&self, input:&[Float]) -> Vec<Float>
     {
         if input.len() != self.num_inputs
         {
@@ -305,7 +310,7 @@ impl Sequential
     }
     
     /// Predict values (forward pass) for a vector of input data (Vec<input>):
-    pub fn predict(&self, inputs:&[Vec<f64>]) -> Vec<Vec<f64>>
+    pub fn predict(&self, inputs:&[Vec<Float>]) -> Vec<Vec<Float>>
     {
         let mut results = Vec::new();
         for input in inputs.iter()
@@ -349,7 +354,7 @@ impl Sequential
     /// Calculate the error to a target set (Vec<(x, y)>):
     /// Mean squared error (for regression)
     /// Potentially ignores different vector lenghts!
-    pub fn calc_mse(&self, target:&[(Vec<f64>, Vec<f64>)]) -> f64
+    pub fn calc_mse(&self, target:&[(Vec<Float>, Vec<Float>)]) -> Float
     {
         let mut avg_error = 0.0;
         for (x, y) in target.iter()
@@ -361,17 +366,17 @@ impl Sequential
                 let error = *yt - *yp;
                 metric += error * error;
             }
-            metric /= y.len() as f64;
+            metric /= y.len() as Float;
             avg_error += metric;
         }
-        avg_error /= target.len() as f64;
+        avg_error /= target.len() as Float;
         avg_error
     }
     
     /// Calculate the error to a target set (Vec<(x, y)>):
     /// Root mean squared error (for regression)
     /// Potentially ignores different vector lenghts!
-    pub fn calc_rmse(&self, target:&[(Vec<f64>, Vec<f64>)]) -> f64
+    pub fn calc_rmse(&self, target:&[(Vec<Float>, Vec<Float>)]) -> Float
     {
         let mut avg_error = 0.0;
         for (x, y) in target.iter()
@@ -383,17 +388,17 @@ impl Sequential
                 let error = *yt - *yp;
                 metric += error * error;
             }
-            metric /= y.len() as f64;
+            metric /= y.len() as Float;
             avg_error += metric.sqrt();
         }
-        avg_error /= target.len() as f64;
+        avg_error /= target.len() as Float;
         avg_error
     }
     
     /// Calculate the error to a target set (Vec<(x, y)>):
     /// Mean absolute error (for regression)
     /// Potentially ignores different vector lenghts!
-    pub fn calc_mae(&self, target:&[(Vec<f64>, Vec<f64>)]) -> f64
+    pub fn calc_mae(&self, target:&[(Vec<Float>, Vec<Float>)]) -> Float
     {
         let mut avg_error = 0.0;
         for (x, y) in target.iter()
@@ -405,17 +410,17 @@ impl Sequential
                 let error = *yt - *yp;
                 metric += error.abs();
             }
-            metric /= y.len() as f64;
+            metric /= y.len() as Float;
             avg_error += metric;
         }
-        avg_error /= target.len() as f64;
+        avg_error /= target.len() as Float;
         avg_error
     }
     
     /// Calculate the error to a target set (Vec<(x, y)>):
     /// Mean absolute percentage error (better don't use if target has 0 values) (for regression)
     /// Potentially ignores different vector lenghts!
-    pub fn calc_mape(&self, target:&[(Vec<f64>, Vec<f64>)]) -> f64
+    pub fn calc_mape(&self, target:&[(Vec<Float>, Vec<Float>)]) -> Float
     {
         let mut avg_error = 0.0;
         for (x, y) in target.iter()
@@ -427,17 +432,17 @@ impl Sequential
                 let error = (*yt - *yp) / *yt;
                 metric += error.abs();
             }
-            metric *= 100.0 / y.len() as f64;
+            metric *= 100.0 / y.len() as Float;
             avg_error += metric;
         }
-        avg_error /= target.len() as f64;
+        avg_error /= target.len() as Float;
         avg_error
     }
     
     /// Calculate the error to a target set (Vec<(x, y)>):
     /// logcosh (for regression)
     /// Potentially ignores different vector lenghts!
-    pub fn calc_logcosh(&self, target:&[(Vec<f64>, Vec<f64>)]) -> f64
+    pub fn calc_logcosh(&self, target:&[(Vec<Float>, Vec<Float>)]) -> Float
     {
         let mut avg_error = 0.0;
         for (x, y) in target.iter()
@@ -449,17 +454,17 @@ impl Sequential
                 let error = *yt - *yp;
                 metric += error.cosh().ln();
             }
-            metric /= y.len() as f64;
+            metric /= y.len() as Float;
             avg_error += metric;
         }
-        avg_error /= target.len() as f64;
+        avg_error /= target.len() as Float;
         avg_error
     }
     
     /// Calculate the error to a target set (Vec<(x, y)>):
     /// binary cross-entropy (be sure to use 0, 1 classifiers+labels) (for classification)
     /// Potentially ignores different vector lenghts!
-    pub fn calc_binary_crossentropy(&self, target:&[(Vec<f64>, Vec<f64>)]) -> f64
+    pub fn calc_binary_crossentropy(&self, target:&[(Vec<Float>, Vec<Float>)]) -> Float
     {
         let mut avg_error = 0.0;
         for (x, y) in target.iter()
@@ -471,17 +476,17 @@ impl Sequential
                 let error = *yt * yp.ln() + (1.0 - *yt) * (1.0 - *yp).ln();
                 metric += -error;
             }
-            metric /= y.len() as f64;
+            metric /= y.len() as Float;
             avg_error += metric;
         }
-        avg_error /= target.len() as f64;
+        avg_error /= target.len() as Float;
         avg_error
     }
     
     /// Calculate the error to a target set (Vec<(x, y)>):
     /// categorical cross-entropy (be sure to use 0, 1 classifiers+labels) (for classification)
     /// Potentially ignores different vector lenghts!
-    pub fn calc_categorical_crossentropy(&self, target:&[(Vec<f64>, Vec<f64>)]) -> f64
+    pub fn calc_categorical_crossentropy(&self, target:&[(Vec<Float>, Vec<Float>)]) -> Float
     {
         let mut avg_error = 0.0;
         for (x, y) in target.iter()
@@ -495,14 +500,14 @@ impl Sequential
             }
             avg_error += metric;
         }
-        avg_error /= target.len() as f64;
+        avg_error /= target.len() as Float;
         avg_error
     }
     
     /// Calculate the error to a target set (Vec<(x, y)>):
     /// hinge loss (be sure to use 1, -1 classifiers+labels) (for classification)
     /// Potentially ignores different vector lenghts!
-    pub fn calc_hingeloss(&self, target:&[(Vec<f64>, Vec<f64>)]) -> f64
+    pub fn calc_hingeloss(&self, target:&[(Vec<Float>, Vec<Float>)]) -> Float
     {
         let mut avg_error = 0.0;
         for (x, y) in target.iter()
@@ -514,10 +519,10 @@ impl Sequential
                 let error = 1.0 - *yt * *yp;
                 metric += error.max(0.0);
             }
-            metric /= y.len() as f64;
+            metric /= y.len() as Float;
             avg_error += metric;
         }
-        avg_error /= target.len() as f64;
+        avg_error /= target.len() as Float;
         avg_error
     }
 }
@@ -526,17 +531,18 @@ impl Sequential
 
 //helper functions
 /// Generate a vector of random numbers with 0 mean and std std, normally distributed.
-fn gen_rnd_vec(n:usize, std:f64) -> Vec<f64>
+/// Using standard thread_rng.
+pub fn gen_rnd_vec(n:usize, std:Float) -> Vec<Float>
 {
     let mut rng = thread_rng();
-    let normal = Normal::new(0.0, std);
-    normal.sample_iter(&mut rng).take(n).collect()
+    let normal = Normal::new(0.0, std as f64);
+    normal.sample_iter(&mut rng).take(n).map(|x| x as Float).collect()
 }
 
 /// Generate parameters based on Glorot initialization
-fn gen_glorot(n_in:usize, n_out:usize) -> Vec<Vec<f64>>
+fn gen_glorot(n_in:usize, n_out:usize) -> Vec<Vec<Float>>
 {
-    let std = (2.0 / (n_in + n_out) as f64).sqrt();
+    let std = (2.0 / (n_in + n_out) as Float).sqrt();
     let mut weights = Vec::new();
     for _ in 0..n_out
     {
@@ -546,9 +552,9 @@ fn gen_glorot(n_in:usize, n_out:usize) -> Vec<Vec<f64>>
 }
 
 /// Generate parameters based on He initialization
-fn gen_he(n_in:usize, n_out:usize) -> Vec<Vec<f64>>
+fn gen_he(n_in:usize, n_out:usize) -> Vec<Vec<Float>>
 {
-    let std = (2.0 / n_in as f64).sqrt();
+    let std = (2.0 / n_in as Float).sqrt();
     let mut weights = Vec::new();
     for _ in 0..n_out
     {
@@ -558,14 +564,14 @@ fn gen_he(n_in:usize, n_out:usize) -> Vec<Vec<f64>>
 }
 
 /// Apply dropout to a layer. d = fraction of nodes to be dropped
-fn apply_dropout(layer:&mut [f64], d:f64)
+fn apply_dropout(layer:&mut [Float], d:Float)
 {
     if d == 0.0
     { //allow zero dropout to allow later change, but do nothing here
         return;
     }
     // set nodes to zero
-    let num = (d * layer.len() as f64) as usize;
+    let num = (d * layer.len() as Float) as usize;
     let mut rng = thread_rng();
     for _ in 0..num
     {
@@ -578,7 +584,7 @@ fn apply_dropout(layer:&mut [f64], d:f64)
 
 /// Calculate layer results with bias from weight
 /// If weights matrix is empty, result will be empty (indicating zero nodes)
-fn modified_matrix_dotprod(weights:&[Vec<f64>], values:&[f64]) -> Vec<f64>
+fn modified_matrix_dotprod(weights:&[Vec<Float>], values:&[Float]) -> Vec<Float>
 {
     let mut result = Vec::new();
     for node in weights.iter()
@@ -596,17 +602,17 @@ fn modified_matrix_dotprod(weights:&[Vec<f64>], values:&[f64]) -> Vec<f64>
 
 
 //activiation functions
-fn linear(x:f64) -> f64
+fn linear(x:Float) -> Float
 {
     x
 }
 
-fn relu(x:f64) -> f64
+fn relu(x:Float) -> Float
 {
     x.max(0.0)
 }
 
-fn lrelu(x:f64, factor:f64) -> f64
+fn lrelu(x:Float, factor:Float) -> Float
 {
     if x < 0.0
     {
@@ -618,7 +624,7 @@ fn lrelu(x:f64, factor:f64) -> f64
     }
 }
 
-fn elu(x:f64) -> f64
+fn elu(x:Float) -> Float
 {
     if x < 0.0
     {
@@ -630,7 +636,7 @@ fn elu(x:f64) -> f64
     }
 }
 
-fn pelu(x:f64, a:f64, b:f64) -> f64
+fn pelu(x:Float, a:Float, b:Float) -> Float
 {
     if x < 0.0
     {
@@ -642,7 +648,7 @@ fn pelu(x:f64, a:f64, b:f64) -> f64
     }
 }
 
-fn selu(x:f64) -> f64
+fn selu(x:Float) -> Float
 {
     SELU_LAMBDA * if x < 0.0
     {
@@ -654,44 +660,44 @@ fn selu(x:f64) -> f64
     }
 }
 
-fn sigmoid(x:f64) -> f64
+fn sigmoid(x:Float) -> Float
 {
     1.0 / (1.0 + (-x).exp())
 }
 
-fn tanh(x:f64) -> f64
+fn tanh(x:Float) -> Float
 {
     x.tanh()
 }
 
-fn quadratic(x:f64) -> f64
+fn quadratic(x:Float) -> Float
 {
     x * x
 }
 
-fn cubic(x:f64) -> f64
+fn cubic(x:Float) -> Float
 {
     x * x * x
 }
 
-fn clip_linear(x:f64) -> f64
+fn clip_linear(x:Float) -> Float
 {
     x.min(1.0).max(-1.0)
 }
 
-fn gaussian(x:f64) -> f64
+fn gaussian(x:Float) -> Float
 {
     (-x * x).exp()
 }
 
-fn softplus(x:f64) -> f64
+fn softplus(x:Float) -> Float
 {
     (1.0 + x.exp()).ln()
 }
 
-fn softmax(arr:&mut [f64])
+fn softmax(arr:&mut [Float])
 {
-    let norm:f64 = arr.iter().map(|x| x.exp()).sum();
+    let norm:Float = arr.iter().map(|x| x.exp()).sum();
     for val in arr.iter_mut()
     {
         *val = val.exp() / norm;
