@@ -12,7 +12,7 @@ extern crate rand;
 use std::io::prelude::*;
 use std::fs::File;
 use rand::prelude::*;
-use rand::distributions::{Normal, Distribution};
+use rand::distributions::Normal;
 
 pub type Float = f32;
 #[cfg(feature = "floats-f64")]
@@ -579,7 +579,7 @@ fn apply_dropout(layer:&mut [Float], d:Float)
         layer[i] = 0.0;
     }
     //divide other nodes by probability to adapt variance
-    layer.iter_mut().for_each(|x| { *x /= d; })
+    layer.iter_mut().for_each(|x| { *x /= (1.0 - d); })
 }
 
 /// Calculate layer results with bias from weight
