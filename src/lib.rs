@@ -579,7 +579,7 @@ fn apply_dropout(layer:&mut [Float], d:Float)
         layer[i] = 0.0;
     }
     //divide other nodes by probability to adapt variance
-    layer.iter_mut().for_each(|x| { *x /= (1.0 - d); })
+    layer.iter_mut().for_each(|x| { *x /= 1.0 - d; })
 }
 
 /// Calculate layer results with bias from weight

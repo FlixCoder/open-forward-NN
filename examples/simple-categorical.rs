@@ -29,8 +29,11 @@ fn main()
     let eval = NNEvaluator::new(model.clone(), x.clone(), y.clone());
     
     //evolutionary optimizer (for more details about it, see the git repository of it)
-    let mut opt = ES::new_with_adam(eval, 0.5, 0.01); //learning rate, weight decay
-    opt.get_opt_mut().set_beta2(0.99); //set adam's beta2
+    let mut adam = Adam::new();
+    adam.set_lr(0.5)
+        .set_lambda(0.01)
+        .set_beta2(0.99);
+    let mut opt = ES::new(adam, eval); //learning rate, weight decay
     opt.set_params(model.get_params())
         .set_std(0.2)
         .set_samples(50);
