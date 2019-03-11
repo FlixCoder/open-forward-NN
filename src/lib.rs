@@ -85,9 +85,9 @@ pub enum Layer
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum Initializer
 {
-    /// Glorot/Xavier initialization
+    /// Glorot/Xavier initialization, preferably for Tanh
     Glorot,
-    /// He initialization
+    /// He initialization, preferably for ReLU
     He,
     /// initialize with a constant value
     Const(Float),
@@ -254,7 +254,7 @@ impl Sequential
     
     /// Add a Dense layer:
     /// neurons = number of neurons/units in the layer
-    /// init = initializer to use
+    /// init = initializer to use (use He for ReLU, Glorot for Tanh)
     pub fn add_layer_dense(&mut self, neurons:usize, init:Initializer) -> &mut Self
     {
         let weights = match init
