@@ -23,7 +23,7 @@ pub type Float = f64;
 //try new softmax without exp? (possibly bad for losses)
 //multiplication node layer? (try some impossible stuff for backpropagation)
 //add convolutional and pooling layers?
-//add dropout layer with param getting optimized as well
+//add dropout layer with param getting optimized as well; dropout has to be equal across batches => modifications needed
 
 pub mod losses;
 
@@ -59,6 +59,8 @@ pub enum Layer
     Sigmoid,
     /// tanh
     Tanh,
+    /// absolute
+    Abs,
     /// quadratic
     Quadratic,
     /// cubic
@@ -292,6 +294,7 @@ impl Sequential
                 Layer::SELU => result.iter_mut().for_each(|x| { *x =selu(*x); }),
                 Layer::Sigmoid => result.iter_mut().for_each(|x| { *x = sigmoid(*x); }),
                 Layer::Tanh => result.iter_mut().for_each(|x| { *x = tanh(*x); }),
+                Layer::Abs => result.iter_mut().for_each(|x| { *x = abs(*x); }),
                 Layer::Quadratic => result.iter_mut().for_each(|x| { *x = quadratic(*x); }),
                 Layer::Cubic => result.iter_mut().for_each(|x| { *x = cubic(*x); }),
                 Layer::ClipLinear => result.iter_mut().for_each(|x| { *x = clip_linear(*x); }),
@@ -602,11 +605,13 @@ fn modified_matrix_dotprod(weights:&[Vec<Float>], values:&[Float]) -> Vec<Float>
 
 
 //activiation functions
+#[inline]
 fn linear(x:Float) -> Float
 {
     x
 }
 
+#[inline]
 fn relu(x:Float) -> Float
 {
     x.max(0.0)
@@ -628,7 +633,7 @@ fn elu(x:Float) -> Float
 {
     if x < 0.0
     {
-        x.exp()
+        x.exp() - 1.0
     }
     else
     {
@@ -665,26 +670,37 @@ fn sigmoid(x:Float) -> Float
     1.0 / (1.0 + (-x).exp())
 }
 
+#[inline]
 fn tanh(x:Float) -> Float
 {
     x.tanh()
 }
 
+#[inline]
+fn abs(x:Float) -> Float
+{
+    x.abs()
+}
+
+#[inline]
 fn quadratic(x:Float) -> Float
 {
     x * x
 }
 
+#[inline]
 fn cubic(x:Float) -> Float
 {
     x * x * x
 }
 
+#[inline]
 fn clip_linear(x:Float) -> Float
 {
     x.min(1.0).max(-1.0)
 }
 
+#[inline]
 fn gaussian(x:Float) -> Float
 {
     (-x * x).exp()
