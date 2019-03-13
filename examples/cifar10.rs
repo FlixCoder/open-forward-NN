@@ -12,27 +12,18 @@ use std::time::Instant;
 
 const BATCHSIZE:usize = 32; //number of items to form a batch inside evaluation
 
-const LR:Float = 0.002; //learning rate for the optimizer
-const LAMBDA:Float = 0.0; //weight decay factor
-const ADABOUND:bool = true; //use AdaBound variant?
-const FINAL_LR:Float = 0.1; //final AdaBound learning rate (SGD)
-const GAMMA:Float = 0.001; //gamma value for AdaBound
-
-const DROPOUT:Float = 0.2; //dropout factor (percentage to be dropped)
-
-const NOISE_STD:Float = 0.02; //standard deviation of noise to mutate parameters and generate meta population
-const POPULATION:usize = 250; //number of double-sided samples forming the meta population
+const NOISE_STD:Float = 0.025; //standard deviation of noise to mutate parameters and generate meta population
+const POPULATION:usize = 100; //number of double-sided samples forming the meta population
 
 //TODO:
-//try adamax/SGD?
-//try normal opt.optimize_par or _std_par?
 //try L0.5 regularization
 
 
 fn main()
 {
+    std::fs::create_dir("./model").ok();
     //NN model
-    let loaded = Sequential::load("cifar10.nn");
+    let loaded = Sequential::load("./model/cifar10.nn");
     let mut model = if loaded.is_ok()
         { //try loaded model first
             loaded.unwrap()
@@ -40,9 +31,8 @@ fn main()
         else
         { //else construct it
             let mut model = Sequential::new(3072);
-            model.add_layer_dense(384, Initializer::He)
-                .add_layer(Layer::ReLU)
-                .add_layer_dropout(DROPOUT)
+            model.add_layer_dense(384, Initializer::Glorot)
+                .add_layer(Layer::PReLU(0.05))
                 .add_layer_dense(10, Initializer::Glorot)
                 .add_layer(Layer::SoftMax);
             model
@@ -52,20 +42,19 @@ fn main()
     let eval = CIFAR10Evaluator::new("cifar-10-binary/data_batch_1.bin", model.clone());
     
     //create or load optimizer
-    let loaded = Adam::load("optimizer.json");
+    let loaded = Adamax::load("./model/optimizer.json");
     let mut opt = if loaded.is_ok()
         {
             loaded.unwrap()
         }
         else
         {
-            Adam::new()
+            Adamax::new()
         };
-    opt.set_lr(LR)
-        .set_lambda(LAMBDA)
-        .set_adabound(ADABOUND)
-        .set_gamma(GAMMA)
-        .set_final_lr(FINAL_LR);
+    opt.set_lr(0.0025)
+        .set_lambda(0.001)
+        .set_beta1(0.9)
+        .set_beta2(0.999);
     
     //evolutionary optimizer (for more details about it, see the git repository of it)
     let mut opt = ES::new(opt, eval);
@@ -89,8 +78,8 @@ fn main()
         
         //save results
         model.set_params(opt.get_params());
-        model.save("cifar10.nn").ok();
-        opt.get_opt().save("optimizer.json").ok();
+        model.save("./model/cifar10.nn").ok();
+        opt.get_opt().save("./model/optimizer.json").ok();
         
         //display progress
         println!("After {} iteratios:", (i+1) * n);
@@ -105,16 +94,16 @@ fn main()
     
     //save trained model and estimate and display results
     model.set_params(opt.get_params());
-    model.save("cifar10.nn").ok();
-    opt.get_opt().save("optimizer.json").ok();
+    model.save("./model/cifar10.nn").ok();
+    opt.get_opt().save("./model/optimizer.json").ok();
     
     println!("Final results on test data:");
     tester.set_model(model.clone());
     tester.print_metrics();
     
     //clean up
-    //std::fs::remove_file("cifar10.nn").ok();
-    //std::fs::remove_file("optimizer.json").ok();
+    //std::fs::remove_file("./model/cifar10.nn").ok();
+    //std::fs::remove_file("./model/optimizer.json").ok();
 }
 
 
@@ -130,7 +119,6 @@ fn load_cifar10(filename:&str) -> std::io::Result<(Vec<Vec<Float>>, Vec<Vec<Floa
         file.read_exact(&mut buffer)?;
         y.push(to_categorical(10, buffer[0]));
         let data:Vec<Float> = buffer[1..].iter().map(|val| *val as Float / 128.0 - 1.0).collect();
-        //let data:Vec<Float> = buffer[1..].iter().map(|val| *val as Float / 255.0).collect();
         x.push(data);
     }
     
@@ -184,9 +172,6 @@ impl CIFAR10Evaluator
     
     pub fn print_metrics(&mut self)
     {
-        //disable dropout for testing
-        self.model.get_layers_mut()[2] = Layer::Dropout(0.0);
-        
         //compute predicitions for whole data
         let pred = self.model.predict(&self.data.0);
         
@@ -206,9 +191,6 @@ impl CIFAR10Evaluator
         //display results
         println!("Loss: {}", loss);
         println!("Accuracy: {:6.3}%", acc);
-        
-        //reenable dropout after testing
-        self.model.get_layers_mut()[2] = Layer::Dropout(DROPOUT);
     }
 }
 
@@ -231,6 +213,30 @@ impl Evaluator for CIFAR10Evaluator
     
     fn eval_test(&self, params:&[Float]) -> Float
     {
-        self.eval_train(params, 9999) //use index greater than can be used during training to possibly yield seperate test data (constant)
+        //fast stochastic loss estimation like in training, but with the same data for all steps to track changes
+        //self.eval_train(params, 9999) //use index greater than can be used during training to possibly yield seperate test data (constant)
+        
+        //slower, but complete training set metrics
+        let mut local = self.model.clone();
+        local.set_params(params);
+        
+        //compute predicitions for whole data
+        let pred = local.predict(&self.data.0);
+        
+        //calculate metrics
+        let loss = losses::categorical_crossentropy(&pred, &self.data.1);
+        let mut acc = 0.0;
+        for (p, t) in pred.iter().zip(self.data.1.iter())
+        {
+            let select = argmax(p);
+            if t[select] == 1.0
+            {
+                acc += 1.0;
+            }
+        }
+        acc *= 100.0 / pred.len() as Float;
+        
+        //return accurracy.loss (is used for return value only)
+        acc.round() + loss / 10.0
     }
 }
