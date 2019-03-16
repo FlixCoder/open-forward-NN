@@ -13,7 +13,7 @@ use std::time::Instant;
 const BATCHSIZE:usize = 32; //number of items to form a batch inside evaluation
 
 const NOISE_STD:Float = 0.025; //standard deviation of noise to mutate parameters and generate meta population
-const POPULATION:usize = 100; //number of double-sided samples forming the meta population
+const POPULATION:usize = 25; //number of double-sided samples forming the meta population
 
 //TODO:
 //try L0.5 regularization
@@ -32,7 +32,7 @@ fn main()
         { //else construct it
             let mut model = Sequential::new(3072);
             model.add_layer_dense(384, Initializer::Glorot)
-                .add_layer(Layer::PReLU(0.05))
+                .add_layer(Layer::SELU)
                 .add_layer_dense(10, Initializer::Glorot)
                 .add_layer(Layer::SoftMax);
             model
@@ -51,7 +51,7 @@ fn main()
         {
             Adamax::new()
         };
-    opt.set_lr(0.0025)
+    opt.set_lr(0.005)
         .set_lambda(0.001)
         .set_beta1(0.9)
         .set_beta2(0.999);
@@ -73,8 +73,8 @@ fn main()
     for i in 0..10
     { //10 times
         //optimize for n steps
-        let n = 10;
-        let res = opt.optimize_par(n); //use ranked or not?
+        let n = 100;
+        let res = opt.optimize_ranked_par(n);
         
         //save results
         model.set_params(opt.get_params());

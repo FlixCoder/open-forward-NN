@@ -24,7 +24,7 @@ fn main()
         { //else construct it
             let mut model = Sequential::new(2); //input size = 2
             model.add_layer_dense(3, Initializer::He) //add hidden dense layer with 3 neurons, init with He
-                .add_layer_prelu(0.3) //add lrelu activation with initial factor 0.3
+                .add_layer_prelu(0.05) //add lrelu activation with initial factor 0.3
                 .add_layer_dense(1, Initializer::Glorot) //add output dense layer with only 1 output, init with Glorot
                 .add_layer(Layer::Sigmoid); //add sigmoid activation
             model
@@ -34,10 +34,10 @@ fn main()
     let eval = NNEvaluator::new(model.clone(), target.clone());
     
     //evolutionary optimizer (for more details about it, see the git repository of it)
-    let mut opt = ES::new_with_adam(eval, 0.5, 0.01); //learning rate, weight decay
-    opt.get_opt_mut().set_beta2(0.99); //set adam's beta2
+    let mut opt = ES::new_with_adam(eval, 0.25, 0.01); //learning rate, weight decay
+    //opt.get_opt_mut().set_beta2(0.99); //set adam's beta2
     opt.set_params(model.get_params())
-        .set_std(0.2)
+        .set_std(0.1)
         .set_samples(50);
     
     //training: track the optimizer's results
