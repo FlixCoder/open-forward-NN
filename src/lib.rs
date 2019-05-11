@@ -23,7 +23,8 @@ pub type Float = f64;
 //try new softmax without exp? (possibly bad for losses)
 //multiplication node layer? (try some impossible stuff for backpropagation)
 //add convolutional and pooling layers?
-//add dropout layer with param getting optimized as well; dropout has to be equal across batches => modifications needed
+//add dropout layer with param getting optimized as well
+//fix dropout: dropout has to be equal across batches => modifications needed. currently it kind of is more noise
 
 pub mod losses;
 

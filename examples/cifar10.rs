@@ -8,11 +8,12 @@ use ofnn::Float;
 use rand::prelude::*;
 use std::io::prelude::*;
 use std::fs::File;
+use std::path::Path;
 use std::time::Instant;
 
 const BATCHSIZE:usize = 32; //number of items to form a batch inside evaluation
 
-const NOISE_STD:Float = 0.025; //standard deviation of noise to mutate parameters and generate meta population
+const NOISE_STD:Float = 0.02; //standard deviation of noise to mutate parameters and generate meta population
 const POPULATION:usize = 25; //number of double-sided samples forming the meta population
 
 //TODO:
@@ -38,8 +39,8 @@ fn main()
             model
         };
     
-    //create the evaluator
-    let eval = CIFAR10Evaluator::new("cifar-10-binary/data_batch_1.bin", model.clone());
+    //create the evaluator with training data
+    let eval = CIFAR10Evaluator::new(model.clone(), "cifar-10-binary/", true);
     
     //create or load optimizer
     let loaded = Adamax::load("./model/optimizer.json");
@@ -51,9 +52,9 @@ fn main()
         {
             Adamax::new()
         };
-    opt.set_lr(0.005)
-        .set_lambda(0.001)
-        .set_beta1(0.9)
+    opt.set_lr(0.0025)
+        //.set_lambda(0.001)
+        .set_beta1(0.95)
         .set_beta2(0.999);
     
     //evolutionary optimizer (for more details about it, see the git repository of it)
@@ -64,7 +65,7 @@ fn main()
     
     //show initial scores
     println!("Initial results on test set:");
-    let mut tester = CIFAR10Evaluator::new("cifar-10-binary/test_batch.bin", model.clone());
+    let mut tester = CIFAR10Evaluator::new(model.clone(), "cifar-10-binary/", false); //test data
     tester.print_metrics();
     
     //training: track the optimizer's results
@@ -107,7 +108,14 @@ fn main()
 }
 
 
-fn load_cifar10(filename:&str) -> std::io::Result<(Vec<Vec<Float>>, Vec<Vec<Float>>)>
+/// Function to pass to map() for pixel normalization
+fn image_normalize(x:&u8) -> Float
+{
+    (*x as Float / 255.0 - 0.5) * 2.0 * 1.6 //map [0, 255] to [-1.6, 1.6]
+}
+
+/// Loads a CIFAR10 file and returns normalized, categorized data in a Result<(X, Y)>
+fn load_cifar10(filename:&Path) -> std::io::Result<(Vec<Vec<Float>>, Vec<Vec<Float>>)>
 {
     let mut file = File::open(filename)?;
     let mut x = Vec::new();
@@ -118,13 +126,14 @@ fn load_cifar10(filename:&str) -> std::io::Result<(Vec<Vec<Float>>, Vec<Vec<Floa
     {
         file.read_exact(&mut buffer)?;
         y.push(to_categorical(10, buffer[0]));
-        let data:Vec<Float> = buffer[1..].iter().map(|val| *val as Float / 128.0 - 1.0).collect();
+        let data:Vec<Float> = buffer[1..].iter().map(image_normalize).collect();
         x.push(data);
     }
     
     Ok((x, y))
 }
 
+/// Translates integer labels into categorical label arrays.
 fn to_categorical(classes:u8, label:u8) -> Vec<Float>
 {
     let mut vec = vec![0.0; classes as usize];
@@ -132,6 +141,7 @@ fn to_categorical(classes:u8, label:u8) -> Vec<Float>
     vec
 }
 
+/// Return argmax of vector
 fn argmax(vec:&[Float]) -> usize
 {
     let mut argmax = 0;
@@ -158,9 +168,30 @@ struct CIFAR10Evaluator
 
 impl CIFAR10Evaluator
 {
-    pub fn new(filename:&str, model:Sequential) -> CIFAR10Evaluator
+    pub fn new(model:Sequential, folder:&str, train:bool) -> CIFAR10Evaluator
     {
-        let data = load_cifar10(filename).unwrap();
+        let path = Path::new(folder);
+        let mut data;
+        if train
+        {
+            data = load_cifar10(&path.join("data_batch_1.bin")).unwrap();
+            let mut tmp = load_cifar10(&path.join("data_batch_2.bin")).unwrap();
+            data.0.append(&mut tmp.0);
+            data.1.append(&mut tmp.1);
+            let mut tmp = load_cifar10(&path.join("data_batch_3.bin")).unwrap();
+            data.0.append(&mut tmp.0);
+            data.1.append(&mut tmp.1);
+            let mut tmp = load_cifar10(&path.join("data_batch_4.bin")).unwrap();
+            data.0.append(&mut tmp.0);
+            data.1.append(&mut tmp.1);
+            let mut tmp = load_cifar10(&path.join("data_batch_5.bin")).unwrap();
+            data.0.append(&mut tmp.0);
+            data.1.append(&mut tmp.1);
+        }
+        else
+        {
+            data = load_cifar10(&path.join("test_batch.bin")).unwrap();
+        }
         let seed = thread_rng().next_u64() % (std::u64::MAX - 10000); //prevent overflow when adding the index
         CIFAR10Evaluator { model: model, data: data, seed: seed }
     }
