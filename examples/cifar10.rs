@@ -13,11 +13,12 @@ use std::time::Instant;
 
 const BATCHSIZE:usize = 32; //number of items to form a batch inside evaluation
 
-const NOISE_STD:Float = 0.02; //standard deviation of noise to mutate parameters and generate meta population
-const POPULATION:usize = 25; //number of double-sided samples forming the meta population
+const NOISE_STD:Float = 0.025; //standard deviation of noise to mutate parameters and generate meta population
+const POPULATION:usize = 500; //number of double-sided samples forming the meta population
 
 //TODO:
 //try L0.5 regularization
+//try sequential batches?
 
 
 fn main()
@@ -56,6 +57,7 @@ fn main()
         //.set_lambda(0.001)
         .set_beta1(0.95)
         .set_beta2(0.999);
+    let iterations = opt.get_t();
     
     //evolutionary optimizer (for more details about it, see the git repository of it)
     let mut opt = ES::new(opt, eval);
@@ -70,6 +72,7 @@ fn main()
     
     //training: track the optimizer's results
     println!("Beginning training..");
+    println!("");
     let time = Instant::now();
     for i in 0..10
     { //10 times
@@ -83,7 +86,7 @@ fn main()
         opt.get_opt().save("./model/optimizer.json").ok();
         
         //display progress
-        println!("After {} iteratios:", (i+1) * n);
+        println!("After {} iteratios:", iterations + (i+1) * n);
         println!("Score: {}", res.0);
         println!("Gradnorm: {}", res.1);
         println!("");
@@ -192,7 +195,7 @@ impl CIFAR10Evaluator
         {
             data = load_cifar10(&path.join("test_batch.bin")).unwrap();
         }
-        let seed = thread_rng().next_u64() % (std::u64::MAX - 10000); //prevent overflow when adding the index
+        let seed = thread_rng().next_u64() % (std::u64::MAX - 50000); //prevent overflow when adding the index/iterations
         CIFAR10Evaluator { model: model, data: data, seed: seed }
     }
     
@@ -245,7 +248,7 @@ impl Evaluator for CIFAR10Evaluator
     fn eval_test(&self, params:&[Float]) -> Float
     {
         //fast stochastic loss estimation like in training, but with the same data for all steps to track changes
-        //self.eval_train(params, 9999) //use index greater than can be used during training to possibly yield seperate test data (constant)
+        //self.eval_train(params, 49999) //use index greater than can be used during training to possibly yield seperate test data (constant)
         
         //slower, but complete training set metrics
         let mut local = self.model.clone();
