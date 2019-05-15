@@ -14,11 +14,12 @@ use std::time::Instant;
 const BATCHSIZE:usize = 32; //number of items to form a batch inside evaluation
 
 const NOISE_STD:Float = 0.025; //standard deviation of noise to mutate parameters and generate meta population
-const POPULATION:usize = 500; //number of double-sided samples forming the meta population
+const POPULATION:usize = 500; //number of double-sided samples forming the psueod/meta population
 
 //TODO:
-//try L0.5 regularization
+//try L0.5 regularization (avg sqrt)
 //try sequential batches?
+//random/zero/convolution-like init?
 
 
 fn main()
@@ -33,9 +34,9 @@ fn main()
         else
         { //else construct it
             let mut model = Sequential::new(3072);
-            model.add_layer_dense(384, Initializer::Glorot)
+            model.add_layer_dense(384, Initializer::Const(0.0)) //better than random init (maybe due to convolution)
                 .add_layer(Layer::SELU)
-                .add_layer_dense(10, Initializer::Glorot)
+                .add_layer_dense(10, Initializer::Const(0.0)) //better than random init (maybe due to convolution)
                 .add_layer(Layer::SoftMax);
             model
         };

@@ -19,6 +19,7 @@ pub type Float = f32;
 pub type Float = f64;
 
 //TODO:
+//add 3d data input, processing and flatten
 //add (batch) normalization? (using running average)
 //try new softmax without exp? (possibly bad for losses)
 //multiplication node layer? (try some impossible stuff for backpropagation)
