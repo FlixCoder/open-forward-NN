@@ -79,7 +79,7 @@ fn main()
     { //10 times
         //optimize for n steps
         let n = 100;
-        let res = opt.optimize_ranked_par(n);
+        let res = opt.optimize_par(n); //opt.optimize_ranked_par(n);
         
         //save results
         model.set_params(opt.get_params());
