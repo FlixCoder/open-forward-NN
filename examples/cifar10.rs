@@ -14,12 +14,10 @@ use std::time::Instant;
 const BATCHSIZE:usize = 32; //number of items to form a batch inside evaluation
 
 const NOISE_STD:Float = 0.025; //standard deviation of noise to mutate parameters and generate meta population
-const POPULATION:usize = 500; //number of double-sided samples forming the psueod/meta population
+const POPULATION:usize = 500; //number of double-sided samples forming the pseudo/meta population
 
 //TODO:
-//try L0.5 regularization (avg sqrt)
-//try sequential batches?
-//random/zero/convolution-like init?
+//find optimizer error, why worse than backprop?
 
 
 fn main()
@@ -34,9 +32,9 @@ fn main()
         else
         { //else construct it
             let mut model = Sequential::new(3072);
-            model.add_layer_dense(384, Initializer::Const(0.0)) //better than random init (maybe due to convolution)
+            model.add_layer_dense(384, Initializer::Const(0.0)) //Initializer::Glorot ?
                 .add_layer(Layer::SELU)
-                .add_layer_dense(10, Initializer::Const(0.0)) //better than random init (maybe due to convolution)
+                .add_layer_dense(10, Initializer::Const(0.0)) //Initializer::He ?
                 .add_layer(Layer::SoftMax);
             model
         };
@@ -45,19 +43,18 @@ fn main()
     let eval = CIFAR10Evaluator::new(model.clone(), "cifar-10-binary/", true);
     
     //create or load optimizer
-    let loaded = Adamax::load("./model/optimizer.json");
+    let loaded = Lookahead::<RAdam>::load("./model/optimizer.json");
     let mut opt = if loaded.is_ok()
         {
             loaded.unwrap()
         }
         else
         {
-            Adamax::new()
+            Lookahead::new(RAdam::new())
         };
-    opt.set_lr(0.0025)
-        //.set_lambda(0.001)
-        .set_beta1(0.95)
-        .set_beta2(0.999);
+    opt.set_k(10);
+    opt.get_opt_mut().set_lr(0.005)
+        .set_lambda(0.0); //0.0 or 0.001
     let iterations = opt.get_t();
     
     //evolutionary optimizer (for more details about it, see the git repository of it)
@@ -243,7 +240,9 @@ impl Evaluator for CIFAR10Evaluator
         let end = start + BATCHSIZE;
         
         let pred = local.predict(&self.data.0[start..end]);
-        -losses::categorical_crossentropy(&pred, &self.data.1[start..end])
+        let loss = -losses::categorical_crossentropy(&pred, &self.data.1[start..end]);
+        let reg = -0.1 * params.iter().fold(0.0, |acc, e| acc + e.abs().sqrt()) / (params.len() as Float); //factor * L0.5 regularization
+        loss + reg
     }
     
     fn eval_test(&self, params:&[Float]) -> Float
